@@ -24,15 +24,15 @@ pipeline {
 
         stage('Lint') {
             steps {
-                sh '''
-                docker run --rm \
-                -v "$WORKSPACE":/app \
-                -w /app \
-                python:3.12-slim \
-                /bin/sh -c "pip install flake8 -q && flake8 src --max-line-length=100"
-                '''
-            }
-        }
+        sh '''
+        docker run --rm \
+        -v "$WORKSPACE":/app \
+        -w /app \
+        python:3.12-slim \
+        flake8 src --max-line-length=100
+        '''
+    }
+}
 
         stage('Build & Test') {
             steps {

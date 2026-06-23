@@ -4,40 +4,42 @@ pipeline {
     environment {
         IMAGE_NAME = 'sentiment-ai'
         REGISTRY = 'ghcr.io/Jason2443'
-        IMAGE_TAG = ''
     }
 
     stages {
         stage('Checkout') {
-    steps {
-        checkout scm
-        script {
-            IMAGE_TAG = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-            env.IMAGE_TAG = IMAGE_TAG
+            steps {
+                checkout scm
+                script {
+                    env.IMAGE_TAG = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
+                }
+                echo "Commit: ${env.GIT_COMMIT}"
+                echo "Image tag: ${env.IMAGE_TAG}"
+            }
         }
-        echo "Commit: ${env.GIT_COMMIT}"
-        echo "Image tag: ${env.IMAGE_TAG}"
-    }
-}
 
-    stage('Lint') {
-    steps {
-        sh '''
-        docker run --rm \
-        -v "$WORKSPACE":/app \
-        -w /app \
-        python:3.12-slim \
-        sh -c 'pip install flake8 -q && flake8 src --max-line-length=100'
-        '''
-    }
-}
+        stage('Lint') {
+            steps {
+                sh """
+                docker run --rm \
+                -v "${WORKSPACE}:/app" \
+                -w /app \
+                python:3.12-slim \
+                /bin/sh -c "pip install flake8 -q && flake8 src --max-line-length=100"
+                """
+            }
+        }
+
         stage('Build & Test') {
             steps {
-                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                sh "docker build -t ${IMAGE_NAME}:${env.IMAGE_TAG} ."
 
                 sh """
                 docker run --rm \
-                ${IMAGE_NAME}:${IMAGE_TAG} \
+                ${IMAGE_NAME}:${env.IMAGE_TAG} \
                 pytest tests/ -v \
                 --cov=src \
                 --cov-report=xml:coverage.xml \
@@ -59,10 +61,10 @@ pipeline {
                     sh """
                     echo \$REGISTRY_PASS | docker login ghcr.io -u \$REGISTRY_USER --password-stdin
 
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
-                    docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+                    docker tag ${IMAGE_NAME}:${env.IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:${env.IMAGE_TAG}
+                    docker push ${REGISTRY}/${IMAGE_NAME}:${env.IMAGE_TAG}
 
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:latest
+                    docker tag ${IMAGE_NAME}:${env.IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:latest
                     docker push ${REGISTRY}/${IMAGE_NAME}:latest
                     """
                 }
@@ -76,7 +78,7 @@ pipeline {
         }
 
         success {
-            echo "Pipeline successful! Image: ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+            echo "Pipeline successful! Image: ${REGISTRY}/${IMAGE_NAME}:${env.IMAGE_TAG}"
         }
 
         failure {

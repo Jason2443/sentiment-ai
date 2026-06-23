@@ -9,31 +9,28 @@ pipeline {
 
     stages {
         stage('Checkout') {
-            steps {
-                checkout scm
-                script {
-                    env.IMAGE_TAG = sh(
-                        script: 'git rev-parse --short HEAD',
-                        returnStdout: true
-                    ).trim()
-                }
-                echo "Commit: ${env.GIT_COMMIT}"
-                echo "Image tag: ${env.IMAGE_TAG}"
-            }
+    steps {
+        checkout scm
+        script {
+            IMAGE_TAG = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+            env.IMAGE_TAG = IMAGE_TAG
         }
+        echo "Commit: ${env.GIT_COMMIT}"
+        echo "Image tag: ${env.IMAGE_TAG}"
+    }
+}
 
-        stage('Lint') {
-            steps {
+    stage('Lint') {
+    steps {
         sh '''
         docker run --rm \
         -v "$WORKSPACE":/app \
         -w /app \
         python:3.12-slim \
-        flake8 src --max-line-length=100
+        sh -c 'pip install flake8 -q && flake8 src --max-line-length=100'
         '''
     }
 }
-
         stage('Build & Test') {
             steps {
                 sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
